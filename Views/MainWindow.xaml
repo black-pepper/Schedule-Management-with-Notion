@@ -1,0 +1,157 @@
+<Window x:Class="Schedule_Management_with_Notion.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Daydock" Height="620" Width="1050" MinHeight="420" MinWidth="720"
+        Background="#FFF9FAFC" FontFamily="Segoe UI">
+    <Window.Resources>
+        <Style x:Key="ScheduleTextStyle" TargetType="TextBlock">
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+            <Setter Property="ToolTip" Value="{Binding Text, RelativeSource={RelativeSource Self}}" />
+        </Style>
+
+        <Style x:Key="ScheduleTitleStyle" TargetType="TextBlock" BasedOn="{StaticResource ScheduleTextStyle}">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#FF19283F" />
+        </Style>
+
+        <Style x:Key="ScheduleNumberStyle" TargetType="TextBlock" BasedOn="{StaticResource ScheduleTextStyle}">
+            <Setter Property="TextAlignment" Value="Right" />
+            <Setter Property="Typography.NumeralAlignment" Value="Tabular" />
+        </Style>
+
+        <Style x:Key="ScheduleDateStyle" TargetType="TextBlock" BasedOn="{StaticResource ScheduleTextStyle}">
+            <Setter Property="Foreground" Value="#FF53647C" />
+            <Setter Property="Typography.NumeralAlignment" Value="Tabular" />
+        </Style>
+
+        <DataTemplate x:Key="ScheduleBadgeTemplate">
+            <Border x:Name="Badge" HorizontalAlignment="Left" VerticalAlignment="Center"
+                    Background="#FFECEFFC" CornerRadius="9" Padding="9,4">
+                <TextBlock Text="{Binding}" FontSize="12" FontWeight="SemiBold" Foreground="#FF3E4D8B"
+                           Style="{StaticResource ScheduleTextStyle}" />
+            </Border>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding}" Value="Spring">
+                    <Setter TargetName="Badge" Property="Background" Value="#FFE3F3EB" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding}" Value="{x:Null}">
+                    <Setter TargetName="Badge" Property="Visibility" Value="Collapsed" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding}" Value="">
+                    <Setter TargetName="Badge" Property="Visibility" Value="Collapsed" />
+                </DataTrigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+
+        <Style x:Key="ScheduleCheckBoxStyle" TargetType="CheckBox">
+            <Setter Property="HorizontalAlignment" Value="Left" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="IsHitTestVisible" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Border x:Name="CheckBorder" Width="17" Height="17" CornerRadius="4"
+                                Background="White" BorderBrush="#FF8796AC" BorderThickness="1">
+                            <Path x:Name="CheckMark" Data="M 3,7 L 6,10 L 12,4" Stroke="White"
+                                  StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                  StrokeLineJoin="Round" Visibility="Collapsed" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="CheckBorder" Property="Background" Value="#FF3461C5" />
+                                <Setter TargetName="CheckBorder" Property="BorderBrush" Value="#FF3461C5" />
+                                <Setter TargetName="CheckMark" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="{x:Null}">
+                                <Setter TargetName="CheckBorder" Property="Visibility" Value="Hidden" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="28,24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,20">
+            <TextBlock Text="Personal Planner" FontSize="28" FontWeight="Bold" Foreground="#FF20242B" />
+            <TextBlock Text="{Binding Status}" TextWrapping="Wrap" Margin="0,5,0,0" FontSize="13" Foreground="#FF68707C" />
+        </StackPanel>
+
+        <Border Grid.Row="2" Background="White" BorderBrush="#FFD8E2EF" BorderThickness="1" CornerRadius="8" Padding="1">
+            <DataGrid x:Name="ScheduleGrid" ItemsSource="{Binding Schedules}" AutoGenerateColumns="False" IsReadOnly="True"
+                      CanUserAddRows="False" CanUserDeleteRows="False" CanUserResizeRows="False"
+                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                      HorizontalGridLinesBrush="#FFE9EFF7" BorderThickness="0"
+                      Background="White" RowBackground="White" AlternatingRowBackground="#FFFAFCFF" AlternationCount="2"
+                      RowHeight="48" ColumnHeaderHeight="42" SelectionMode="Single"
+                      SelectionUnit="FullRow" FontSize="13" Foreground="#FF33445C" UseLayoutRounding="True">
+                <DataGrid.ColumnHeaderStyle>
+                    <Style TargetType="DataGridColumnHeader">
+                        <Setter Property="Background" Value="#FFF1F5FA" />
+                        <Setter Property="Foreground" Value="#FF41536D" />
+                        <Setter Property="FontSize" Value="12" />
+                        <Setter Property="FontWeight" Value="SemiBold" />
+                        <Setter Property="Padding" Value="14,0" />
+                        <Setter Property="VerticalContentAlignment" Value="Center" />
+                        <Setter Property="BorderBrush" Value="#FFDCE5F1" />
+                        <Setter Property="BorderThickness" Value="0,0,1,1" />
+                    </Style>
+                </DataGrid.ColumnHeaderStyle>
+
+                <DataGrid.RowStyle>
+                    <Style TargetType="DataGridRow">
+                        <Style.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#FFF0F5FD" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Background" Value="#FFE6EFFF" />
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.RowStyle>
+
+                <DataGrid.CellStyle>
+                    <Style TargetType="DataGridCell">
+                        <Setter Property="Background" Value="Transparent" />
+                        <Setter Property="BorderBrush" Value="Transparent" />
+                        <Setter Property="BorderThickness" Value="1" />
+                        <Setter Property="Padding" Value="13,0" />
+                        <Setter Property="VerticalContentAlignment" Value="Center" />
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="DataGridCell">
+                                    <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                            BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}"
+                                            SnapsToDevicePixels="True">
+                                        <ContentPresenter VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                                    </Border>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                        <Style.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Background" Value="#FFE6EFFF" />
+                                <Setter Property="Foreground" Value="#FF243A60" />
+                                <Setter Property="BorderBrush" Value="#FFE6EFFF" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter Property="BorderBrush" Value="#FF7799D2" />
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.CellStyle>
+            </DataGrid>
+        </Border>
+    </Grid>
+</Window>
+

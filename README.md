@@ -22,7 +22,9 @@ C# / .NET / WPF로 만드는 Windows 일정 관리 앱입니다.
     ViewModels/
         MainViewModel.cs      화면에 바인딩할 일정 목록
     Models/
-        ScheduleItem.cs       일정 한 건의 데이터 구조
+        ScheduleItem.cs       Page ID, 표시 값, 원본 속성 정보
+        ScheduleTable.cs      동적 열 정의와 행 목록
+        ScheduleLoadState.cs  조회 상태
     App.xaml                  앱 시작 화면과 공통 리소스
     App.xaml.cs                앱 수명 주기 진입점
 
@@ -60,10 +62,33 @@ NOTION_DATA_SOURCE_ID=실제_데이터_소스_ID
 
 앱을 실행할 때 Notion 데이터 소스의 속성 이름과 유형으로 표의 열을 만듭니다. 열 이름을 바꾸거나 속성을 추가한 뒤 앱을 다시 실행하면 반영됩니다. 제목 열은 맨 앞에 표시하고, 나머지는 스키마 응답 순서를 따릅니다. Notion의 개별 뷰에 저장된 열 순서와 표시 여부는 별도 설정입니다.
 
-제목, 텍스트, 체크박스, 숫자, 선택, 다중 선택, 상태, 날짜, URL, 이메일, 전화번호를 표시합니다. 날짜 범위는 시작일을 표시하며, 값이 있는 미지원 유형은 안내 문구로 표시합니다.
+제목, 텍스트, 체크박스, 숫자, 선택, 다중 선택, 상태, 날짜, URL, 이메일, 전화번호, 사람, 관계 ID, 파일 이름, 생성·수정 사용자, 고유 ID, 수식과 롤업 값을 표시합니다. 날짜 범위는 시작일을 표시하며, 값이 있는 미지원 유형은 안내 문구로 표시합니다.
 
 표 위에 `Notion 일정 N건`이 표시되면 원본 데이터베이스와 몇 행을 비교합니다. 권한 오류가 표시되면 원본 데이터베이스에 Integration이 연결되어 있는지 확인합니다.
 
 [Notion 인증 안내](https://developers.notion.com/guides/authorization/overview) · [데이터 소스 조회 명세](https://developers.notion.com/reference/query-a-data-source)
 
 모든 소스와 문서는 UTF-8로 저장합니다.
+
+## 조회 구조와 수정 기능 확장 지점
+
+- MainWindow는 UI 초기화와 동적 열 생성만 담당합니다. Columns 변경 알림을 받으면 열을 다시 구성하며, XAML 스타일과 읽기 전용 표는 유지합니다.
+- MainViewModel은 CommunityToolkit.Mvvm의 ObservableObject, ObservableProperty, RelayCommand를 사용합니다. LoadSchedulesCommand는 비동기 조회를 실행하며 중복 조회를 막습니다.
+- State는 Idle → Loading → Success / Sample / Error로 전환됩니다. IsLoading과 기존 Status 문구가 함께 갱신됩니다. 재조회 시 기존 열과 행을 비우며, 빈 조회 결과도 Success입니다.
+- NotionConfiguration은 기존 환경변수 우선순위와 .env 탐색 규칙으로 설정을 읽습니다. NotionConnectionSettings가 연결 값 검증을 담당하고, 설정이 없으면 SampleScheduleData의 데모 일정 3건을 사용합니다.
+- NotionScheduleService는 데이터 소스 스키마, 데이터베이스 ID 해석, 페이지네이션과 응답 변환을 담당합니다. 인터페이스나 DI 컨테이너를 추가하지 않았으며 테스트에서는 HttpMessageHandler와 설정 로더 함수를 주입합니다.
+- ScheduleItem.PageId는 원본 페이지 ID이고, Properties는 속성 ID·이름·유형 및 복제한 원본 JSON 객체(RawValue)를 보관합니다. Values와 인덱서는 화면 표시용입니다. 날짜 끝·시간대, 선택 옵션 ID 등 수정에 필요한 원본 값은 표시 문자열과 분리되어 있습니다. 예시 행의 PageId는 null입니다.
+- 관계 등 속성의 원본 JSON은 현재 조회 응답에 포함된 범위만 보존합니다. 별도 속성 페이지네이션이나 관계 페이지 제목 조회는 수행하지 않습니다. 향후 수정 시 has_more 등 완전성 여부를 확인해야 합니다.
+- Notion 쓰기 요청은 구현하지 않았습니다. 향후 수정은 표시 문자열을 역변환하지 않고 PageId와 속성 ID 및 원본 값을 기준으로 구현할 수 있습니다.
+- 연결 설정은 토큰을 ToString에 포함하는 record로 만들지 않습니다. HTTP 오류는 상태 코드별 고정 문구로 표시하며 응답 본문이나 토큰을 로그에 기록하지 않습니다.
+
+## 검증
+
+Windows와 .NET 10 SDK에서 실행합니다.
+
+    dotnet build "Schedule Management with Notion.csproj"
+    dotnet run --project Tests/RegressionTests.csproj
+
+회귀 검증은 외부 테스트 프레임워크 없이 실패 시 비정상 종료하는 콘솔 프로젝트입니다. 실제 Notion 토큰이나 네트워크 호출 없이 설정 검증, 예시 데이터, 알림과 재조회, 다양한 속성 표시, 원본 JSON 수명, 페이지네이션, 데이터베이스 ID 해석, 빈 결과, HTTP 오류, 잘못된 JSON, 타임아웃, 중복 실행 방지 및 WPF 인덱서 바인딩을 확인합니다.
+
+MVVM 구현 참고: [ObservableProperty](https://learn.microsoft.com/en-us/dotnet/communitytoolkit/mvvm/generators/observableproperty), [RelayCommand](https://learn.microsoft.com/en-us/dotnet/communitytoolkit/mvvm/generators/relaycommand).

@@ -20,7 +20,7 @@ public sealed class NotionScheduleService(HttpClient httpClient)
             : sourceOrDatabaseId;
 
         var columns = await GetColumnsAsync(token, sourceId);
-        var rows = new List<object?[]>();
+        var rows = new List<ScheduleItem>();
         string? cursor = null;
 
         do
@@ -41,7 +41,7 @@ public sealed class NotionScheduleService(HttpClient httpClient)
 
             foreach (var page in result.GetProperty("results").EnumerateArray())
             {
-                rows.Add(ReadRow(page.GetProperty("properties"), columns));
+                rows.Add(ReadRow(page, columns));
             }
 
             cursor = result.GetProperty("has_more").GetBoolean()
@@ -80,16 +80,23 @@ public sealed class NotionScheduleService(HttpClient httpClient)
             .ToArray();
     }
 
-    private static object?[] ReadRow(JsonElement properties, IReadOnlyList<ScheduleColumn> columns)
+    private static ScheduleItem ReadRow(JsonElement page, IReadOnlyList<ScheduleColumn> columns)
     {
+        var properties = page.GetProperty("properties");
         var valuesById = properties.EnumerateObject().ToDictionary(
             property => property.Value.GetProperty("id").GetString()!,
             property => property.Value);
 
-        return columns.Select(column =>
+        var values = columns.Select(column =>
             valuesById.TryGetValue(column.Id, out var property) && property.TryGetProperty(column.Type, out var value)
                 ? ReadValue(column.Type, value)
                 : null).ToArray();
+        var metadata = properties.EnumerateObject().Select(property => new ScheduleProperty(
+            property.Value.GetProperty("id").GetString()!,
+            property.Name,
+            property.Value.GetProperty("type").GetString()!,
+            property.Value.Clone())).ToArray();
+        return new ScheduleItem(page.GetProperty("id").GetString(), values, metadata);
     }
 
     private static object? ReadValue(string type, JsonElement value)
@@ -111,8 +118,31 @@ public sealed class NotionScheduleService(HttpClient httpClient)
             "date" => ReadDate(value.GetProperty("start")),
             "created_time" or "last_edited_time" => ReadDate(value),
             "url" or "email" or "phone_number" => value.GetString(),
+            "people" => string.Join(", ", value.EnumerateArray().Select(person =>
+                person.TryGetProperty("name", out var name) && name.ValueKind == JsonValueKind.String
+                    ? name.GetString() : person.GetProperty("id").GetString())),
+            "relation" => string.Join(", ", value.EnumerateArray().Select(page => page.GetProperty("id").GetString())),
+            "files" => string.Join(", ", value.EnumerateArray().Select(file => file.GetProperty("name").GetString())),
+            "created_by" or "last_edited_by" => value.TryGetProperty("name", out var userName)
+                ? userName.GetString() : value.GetProperty("id").GetString(),
+            "formula" or "rollup" => ReadComputedValue(value),
+            "string" => value.GetString(),
+            "boolean" => value.GetBoolean(),
+            "unique_id" => string.IsNullOrEmpty(value.GetProperty("prefix").GetString())
+                ? value.GetProperty("number").ToString()
+                : $"{value.GetProperty("prefix").GetString()}-{value.GetProperty("number")}",
             _ => "지원하지 않는 유형"
         };
+    }
+
+    private static object? ReadComputedValue(JsonElement value)
+    {
+        var type = value.GetProperty("type").GetString()!;
+        if (type == "array")
+        {
+            return string.Join(", ", value.GetProperty(type).EnumerateArray().Select(ReadComputedValue));
+        }
+        return value.TryGetProperty(type, out var content) ? ReadValue(type, content) : null;
     }
 
     private static DateTime? ReadDate(JsonElement value)

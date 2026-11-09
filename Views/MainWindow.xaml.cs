@@ -20,14 +20,17 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         DataContext = viewModel;
+        viewModel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(MainViewModel.Columns)) BuildScheduleColumns();
+        };
         Loaded += LoadSchedules;
     }
 
     private async void LoadSchedules(object sender, RoutedEventArgs e)
     {
         Loaded -= LoadSchedules;
-        await viewModel.LoadSchedulesAsync();
-        BuildScheduleColumns();
+        await viewModel.LoadSchedulesCommand.ExecuteAsync(null);
     }
 
     private void BuildScheduleColumns()

@@ -2,12 +2,15 @@ using System.IO;
 
 namespace Schedule_Management_with_Notion.Services.Notion;
 
-internal static class NotionConfiguration
+public static class NotionConfiguration
 {
-    public static (string? Token, string? DataSourceId, string? DatabaseId) Load()
+    public static NotionConnectionSettings Load()
     {
         var fileValues = ReadEnvFile();
-        return (GetValue("NOTION_TOKEN"), GetValue("NOTION_DATA_SOURCE_ID"), GetValue("NOTION_DATABASE_ID"));
+        var token = GetValue("NOTION_TOKEN");
+        var sourceId = GetValue("NOTION_DATA_SOURCE_ID");
+        var databaseId = GetValue("NOTION_DATABASE_ID");
+        return NotionConnectionSettings.Create(token, sourceId, databaseId);
 
         string? GetValue(string key)
         {
